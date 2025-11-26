@@ -1,0 +1,25 @@
+import dotenv from "dotenv";
+dotenv.config();
+
+const MONGO_URL = process.env.ATLAS_URL;
+const PORT = process.env.PORT;
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN;
+
+const AIRTABLE_CLIENT_ID = process.env.AIRTABLE_CLIENT_ID;
+const AIRTABLE_CLIENT_SECRET = process.env.AIRTABLE_CLIENT_SECRET;
+const AIRTABLE_REDIRECT_URI = process.env.AIRTABLE_REDIRECT_URI;
+const AIRTABLE_AUTH_URL = process.env.AIRTABLE_AUTH_URL;
+const AIRTABLE_TOKEN_URL = process.env.AIRTABLE_TOKEN_URL;
+
+export {
+  MONGO_URL,
+  PORT,
+  JWT_SECRET,
+  JWT_EXPIRES_IN,
+  AIRTABLE_CLIENT_ID,
+  AIRTABLE_CLIENT_SECRET,
+  AIRTABLE_REDIRECT_URI,
+  AIRTABLE_AUTH_URL,
+  AIRTABLE_TOKEN_URL,
+};
