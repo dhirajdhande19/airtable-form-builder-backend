@@ -6,7 +6,7 @@ import {
 
 const router = Router();
 
-router.post("/login", airtableLogin);
+router.get("/login", airtableLogin);
 router.get("/callback", airtableCallback);
 
 export default router;
