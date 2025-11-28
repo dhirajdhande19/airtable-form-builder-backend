@@ -3,6 +3,8 @@ import cors from "cors";
 import { connectToDB } from "./src/config/db.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import airtableRoutes from "./src/routes/airtableRoutes.js";
+import formRoutes from "./src/routes/formRoutes.js";
+import responseRoutes from "./src/routes/responseRoute.js";
 import { PORT } from "./src/config/env.js";
 import session from "express-session";
 
@@ -24,7 +26,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // routes
+
 app.use("/api/airtable", airtableRoutes);
+app.use("/api/airtable/form", formRoutes);
+app.use("/api/airtable/responses", responseRoutes);
 app.use("/api/auth/airtable", authRoutes);
 
 const start = async () => {

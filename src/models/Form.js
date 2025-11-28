@@ -4,15 +4,22 @@ const formSchema = mongoose.Schema(
   {
     baseId: { type: String, required: true },
     tableId: { type: String, required: true },
-    owner: { type: mongoose.Schema.ObjectId, ref: "User" },
+    owner: { type: String, required: true },
     questions: [
       {
-        questionKey: String,
-        label: String,
-        type: String,
-        options: [String],
-        conditionalRules: Object,
-        required: Boolean,
+        questionKey: { type: String },
+        fieldId: { type: String },
+        label: { type: String },
+        type: { type: String },
+        required: { type: Boolean },
+        orderIndex: { type: Number },
+        options: [
+          {
+            id: { type: String },
+            name: { type: String },
+          },
+        ],
+        conditionalRules: { type: Object },
       },
     ],
   },
