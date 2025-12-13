@@ -47,10 +47,24 @@ export const createForm = async (req, res) => {
           error: `${questions[i].fieldId} does not exits in Airtable table`,
         });
       }
+      const field = table.fields.find((f) => f.id === questions[i].fieldId);
+
+      // ADD THIS 🔥🔥🔥
+      questions[i].airtableFieldName = field.name;
       questions[i].questionKey = "q_" + i;
     }
 
     questions.sort((a, b) => a.orderIndex - b.orderIndex);
+
+    // Clean options to match schema
+    questions.forEach((q) => {
+      if (Array.isArray(q.options)) {
+        q.options = q.options.map((op) => ({
+          id: op.id,
+          name: op.name,
+        }));
+      }
+    });
 
     const ownerId = req.user._id; // mongo _id of user
     const form = await Form.create({
@@ -59,7 +73,7 @@ export const createForm = async (req, res) => {
       owner: ownerId,
       questions,
     });
-
+    console.log("Incoming questions:", questions);
     return res.status(HttpStatusCode.Created).json({
       success: true,
       form,

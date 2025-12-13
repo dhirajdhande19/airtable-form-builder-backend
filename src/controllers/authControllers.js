@@ -128,15 +128,10 @@ const airtableCallback = async (req, res) => {
     { expiresIn: JWT_EXPIRES_IN }
   );
 
-  return res.status(HttpStatusCode.Ok).json({
-    success: true,
-    token: appToken,
-    user: {
-      id: appUser._id,
-      email: appUser.email,
-      airtableUserId: appUser.airtableUserId,
-    },
-  });
+  // after generating appToken
+  const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+
+  return res.redirect(`${FRONTEND_URL}/auth/callback?token=${appToken}`);
 };
 
 export { airtableLogin, airtableCallback };

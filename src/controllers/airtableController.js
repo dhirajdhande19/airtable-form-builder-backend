@@ -1,270 +1,215 @@
 import axios, { HttpStatusCode } from "axios";
 import { Response } from "../models/Response.js";
+import { makeAirtableRequest } from "../utils/makeAirtableRequest.js";
 
+/* -----------------------------------------------------
+   GET BASES
+----------------------------------------------------- */
 export const getBases = async (req, res) => {
-  const access_token = req.user.access_token;
-
-  if (!access_token) {
-    return res.status(HttpStatusCode.NotFound).json({
-      error: "User is not connected to Airtable, u need to log in first.",
-    });
-  }
-
   try {
-    const response = await axios.get("https://api.airtable.com/v0/meta/bases", {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
+    const user = req.user;
+
+    const response = await makeAirtableRequest(user, {
+      method: "GET",
+      url: "https://api.airtable.com/v0/meta/bases",
     });
 
-    return res.status(HttpStatusCode.Ok).json({ message: response.data });
+    return res.json(response.data);
   } catch (e) {
-    return res.json({ error: e });
+    return res.status(500).json({ error: e.message });
   }
 };
 
+/* -----------------------------------------------------
+   GET TABLES OF A BASE
+----------------------------------------------------- */
 export const getTables = async (req, res) => {
-  const baseId = req.params.baseId;
-  if (!baseId) {
-    return res
-      .status(HttpStatusCode.BadRequest)
-      .json({ error: "baseId not found" });
-  }
-  const access_token = req.user.access_token;
-  if (!access_token) {
-    return res.status(HttpStatusCode.NotFound).json({
-      error: "User is not connected to Airtable, u need to log in first.",
-    });
-  }
-
-  const response = await axios.get(
-    `https://api.airtable.com/v0/meta/bases/${baseId}/tables`,
-    {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
-    }
-  );
-  return res.status(HttpStatusCode.Ok).json(response.data);
-};
-
-export const getFields = async (req, res) => {
-  const { baseId, tableId } = req.params;
-  if (!baseId && !tableId) {
-    return res
-      .status(HttpStatusCode.BadRequest)
-      .json({ error: "baseId/tableId not found" });
-  }
-  const access_token = req.user.access_token;
-
-  if (!access_token) {
-    return res.status(HttpStatusCode.NotFound).json({
-      error: "User is not connected to Airtable, u need to log in first.",
-    });
-  }
-
-  const response = await axios.get(
-    `https://api.airtable.com/v0/meta/bases/${baseId}/tables`,
-    {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
-    }
-  );
-
-  const tables = response.data.tables;
-  const table = tables.find((t) => t.id === tableId);
-  if (!table) {
-    return res.json({ error: "Table not found" });
-  }
-
-  return res.json(table);
-};
-
-export const createRecord = async (req, res) => {
-  const { baseId, tableId } = req.params;
-  if (!baseId || !tableId) {
-    return res
-      .status(HttpStatusCode.BadRequest)
-      .json({ error: "baseId/tableId not found" });
-  }
-  const { fields, formId } = req.body;
-  if (!fields || typeof fields != "object") {
-    return res
-      .status(HttpStatusCode.BadRequest)
-      .json({ error: "Fields object not found" });
-  }
-  if (!formId) {
-    return res
-      .status(HttpStatusCode.BadRequest)
-      .json({ error: "formId is missing" });
-  }
-  const { access_token } = req.user;
-  if (!access_token) {
-    return res.status(HttpStatusCode.Forbidden).json({
-      error: "User is not connected to Airtable, please login first.",
-    });
-  }
   try {
-    const allTables = await axios.get(
-      `https://api.airtable.com/v0/meta/bases/${baseId}/tables`,
-      {
-        headers: { Authorization: `Bearer ${access_token}` },
-      }
-    );
-    const tables = allTables.data.tables; // get all tables
-    const table = tables.find((t) => t.id == tableId);
+    const { baseId } = req.params;
+    const user = req.user;
+
+    const response = await makeAirtableRequest(user, {
+      method: "GET",
+      url: `https://api.airtable.com/v0/meta/bases/${baseId}/tables`,
+    });
+
+    return res.json(response.data);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+};
+
+/* -----------------------------------------------------
+   GET FIELD LIST OF A TABLE
+----------------------------------------------------- */
+export const getFields = async (req, res) => {
+  try {
+    const { baseId, tableId } = req.params;
+    const user = req.user;
+
+    if (!baseId || !tableId) {
+      return res.status(400).json({ error: "baseId and tableId are required" });
+    }
+
+    const response = await makeAirtableRequest(user, {
+      method: "GET",
+      url: `https://api.airtable.com/v0/meta/bases/${baseId}/tables`,
+    });
+
+    const tables = response.data.tables;
+    const table = tables.find((t) => t.id === tableId);
+
+    if (!table) {
+      return res.status(404).json({ error: "Table not found" });
+    }
+
+    return res.json(table);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+};
+
+/* -----------------------------------------------------
+   CREATE NEW RECORD IN A TABLE
+----------------------------------------------------- */
+export const createRecord = async (req, res) => {
+  try {
+    const { baseId, tableId } = req.params;
+    const { fields, formId } = req.body;
+    const user = req.user;
+
+    if (!fields || !formId)
+      return res.status(400).json({ error: "fields + formId required" });
+
+    // Get table name
+    const tablesRes = await makeAirtableRequest(user, {
+      method: "GET",
+      url: `https://api.airtable.com/v0/meta/bases/${baseId}/tables`,
+    });
+
+    const table = tablesRes.data.tables.find((t) => t.id == tableId);
+
+    if (!table)
+      return res.status(404).json({ error: "Table not found in Airtable" });
+
     const tableName = table.name;
 
-    const response = await axios.post(
-      `https://api.airtable.com/v0/${baseId}/${tableName}`,
-      { records: [{ fields }] },
-      {
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    // Create Airtable record
+    const recordRes = await makeAirtableRequest(user, {
+      method: "POST",
+      url: `https://api.airtable.com/v0/${baseId}/${tableName}`,
+      data: { records: [{ fields }] },
+      headers: { "Content-Type": "application/json" },
+    });
 
-    const airtableRecord = response.data.records[0];
+    const airtableRecord = recordRes.data.records[0];
 
+    // Store in Mongo DB
     const savedResponse = await Response.create({
       formId,
       baseId,
       tableId,
       airtableRecordId: airtableRecord.id,
       answers: fields,
-      submittedBy: req.user._id,
+      submittedBy: user._id,
       deletedInAirtable: false,
     });
 
-    return res.status(HttpStatusCode.Created).json({
+    return res.status(201).json({
       success: true,
       airtableRecordId: airtableRecord.id,
       saved: savedResponse,
     });
   } catch (e) {
-    return res.json(e.response.data);
+    return res.status(500).json({ error: e.message });
   }
 };
 
+/* -----------------------------------------------------
+   UPDATE AN EXISTING RECORD
+----------------------------------------------------- */
 export const updateRecord = async (req, res) => {
-  const { baseId, tableId, recordId } = req.params;
-  if (!baseId || !tableId || !recordId) {
-    return res
-      .status(HttpStatusCode.BadRequest)
-      .json({ error: "baseId/tableId/recordId not found" });
-  }
-  const { access_token } = req.user;
-  if (!access_token) {
-    return res
-      .status(HttpStatusCode.Unauthorized)
-      .json({ error: "You need to login via Airtable OAuth" });
-  }
-
-  const allTables = await axios.get(
-    `https://api.airtable.com/v0/meta/bases/${baseId}/tables`,
-    {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
-    }
-  );
-  const tables = allTables.data.tables;
-  const table = tables.find((t) => t.id == tableId);
-  const tableName = table.name;
-
-  const { fields } = req.body;
-  if (!fields) {
-    return res
-      .status(HttpStatusCode.BadRequest)
-      .json({ error: "fields are required" });
-  }
-
-  const response = await axios.patch(
-    `https://api.airtable.com/v0/${baseId}/${tableName}/${recordId}`,
-    { fields },
-    {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
-
-  const prevRes = await Response.findOne({
-    airtableRecordId: recordId,
-    submittedBy: req.user._id,
-  });
-  if (!prevRes) {
-    return res
-      .status(HttpStatusCode.NotFound)
-      .json({ error: "No Response Found in DB" });
-  } else {
-    (prevRes.answers = fields), await prevRes.save();
-  }
-
-  return res.status(HttpStatusCode.Accepted).json({
-    success: true,
-    updateRecord: response.data,
-    saved: prevRes,
-  });
-};
-
-export const deleteRecord = async (req, res) => {
-  const { baseId, tableId, recordId } = req.params;
-  if (!baseId || !tableId || !recordId) {
-    return res.status(HttpStatusCode.BadRequest).json({
-      error: "Missing baseId/tableId/recordId",
-    });
-  }
-
-  const { access_token } = req.user;
-  if (!access_token) {
-    return res
-      .status(HttpStatusCode.Unauthorized)
-      .json({ error: "You need to login via Airtable OAtuh" });
-  }
   try {
-    // get tableName
-    const allTables = await axios.get(
-      `https://api.airtable.com/v0/meta/bases/${baseId}/tables`,
-      {
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-        },
-      }
-    );
-    const tables = allTables.data.tables;
-    const table = tables.find((t) => t.id == tableId);
+    const { baseId, tableId, recordId } = req.params;
+    const { fields } = req.body;
+    const user = req.user;
+
+    if (!fields) return res.status(400).json({ error: "fields are required" });
+
+    // Get table name
+    const tablesRes = await makeAirtableRequest(user, {
+      method: "GET",
+      url: `https://api.airtable.com/v0/meta/bases/${baseId}/tables`,
+    });
+
+    const table = tablesRes.data.tables.find((t) => t.id == tableId);
     const tableName = table.name;
 
-    await axios.delete(
-      `https://api.airtable.com/v0/${baseId}/${tableName}?records[]=${recordId}`,
-      {
-        headers: { Authorization: `Bearer ${access_token}` },
-        "Content-Type": "application/json",
-      }
-    );
-
-    const response = await Response.findOne({
-      airtableRecordId: recordId,
-      submittedBy: req.user._id,
+    // Update Airtable record
+    const updateRes = await makeAirtableRequest(user, {
+      method: "PATCH",
+      url: `https://api.airtable.com/v0/${baseId}/${tableName}/${recordId}`,
+      data: { fields },
+      headers: { "Content-Type": "application/json" },
     });
-    if (!response) {
-      return res
-        .status(HttpStatusCode.NotFound)
-        .json({ error: "Response does not exist in DB" });
-    } else {
-      (response.deletedInAirtable = true), await response.save();
-    }
-    return res.status(HttpStatusCode.Accepted).json({
+
+    // Update DB
+    const prev = await Response.findOne({
+      airtableRecordId: recordId,
+      submittedBy: user._id,
+    });
+
+    if (!prev) return res.status(404).json({ error: "Record not found in DB" });
+
+    prev.answers = fields;
+    await prev.save();
+
+    return res.json({
       success: true,
-      deletedFromAirtable: true,
-      softDeleted: true,
+      updated: updateRes.data,
+      saved: prev,
     });
   } catch (e) {
-    return res.json(e.response.data);
+    return res.status(500).json({ error: e.message });
+  }
+};
+
+/* -----------------------------------------------------
+   DELETE RECORD
+----------------------------------------------------- */
+export const deleteRecord = async (req, res) => {
+  try {
+    const { baseId, tableId, recordId } = req.params;
+    const user = req.user;
+
+    // Get table name
+    const tablesRes = await makeAirtableRequest(user, {
+      method: "GET",
+      url: `https://api.airtable.com/v0/meta/bases/${baseId}/tables`,
+    });
+
+    const table = tablesRes.data.tables.find((t) => t.id == tableId);
+    const tableName = table.name;
+
+    // Delete from Airtable
+    await makeAirtableRequest(user, {
+      method: "DELETE",
+      url: `https://api.airtable.com/v0/${baseId}/${tableName}?records[]=${recordId}`,
+    });
+
+    // Soft delete in DB
+    const saved = await Response.findOne({
+      airtableRecordId: recordId,
+      submittedBy: user._id,
+    });
+
+    if (!saved) return res.status(404).json({ error: "Response not in DB" });
+
+    saved.deletedInAirtable = true;
+    await saved.save();
+
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
   }
 };

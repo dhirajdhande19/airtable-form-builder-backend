@@ -4,13 +4,19 @@ import { connectToDB } from "./src/config/db.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import airtableRoutes from "./src/routes/airtableRoutes.js";
 import formRoutes from "./src/routes/formRoutes.js";
-import responseRoutes from "./src/routes/responseRoute.js";
+import responseRoutes from "./src/routes/responseRoutes.js";
 import { PORT } from "./src/config/env.js";
 import session from "express-session";
 
 const app = express();
+app.set("trust proxy", 1);
 app.use(
-  cors() // -> add frontend url later (local and deployed later)
+  cors({
+    origin: ["http://localhost:5173"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  }) // -> add frontend url later (local and deployed later)
 );
 
 app.use(
