@@ -4,6 +4,7 @@ import {
   AIRTABLE_CLIENT_ID,
   AIRTABLE_CLIENT_SECRET,
   AIRTABLE_REDIRECT_URI,
+  FRONTEND_URL,
   JWT_EXPIRES_IN,
   JWT_SECRET,
 } from "../config/env.js";
@@ -127,9 +128,6 @@ const airtableCallback = async (req, res) => {
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
-
-  // after generating appToken
-  const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
   return res.redirect(`${FRONTEND_URL}/auth/callback?token=${appToken}`);
 };
